@@ -17,6 +17,8 @@
       appTitle: 'Quadern LOMLOE',
       appSubtitle: 'Avaluació competencial amb grups, activitats i exportació editable.',
       install: 'Instal·lar',
+      installHelpTitle: 'Instal·lació de la PWA',
+      installHelp: 'Si el navegador no mostra la finestra automàtica, obre el menú del navegador i tria Afegeix a pantalla d’inici o Instal·la app. A iPhone/iPad cal usar Safari i el botó de compartir.',
       activeGroup: 'Grup actiu',
       menuGroups: 'Grups',
       menuStudents: 'Alumnat',
@@ -139,6 +141,8 @@
       appTitle: 'Cuaderno LOMLOE',
       appSubtitle: 'Evaluación competencial con grupos, actividades y exportación editable.',
       install: 'Instalar',
+      installHelpTitle: 'Instalación de la PWA',
+      installHelp: 'Si el navegador no muestra la ventana automática, abre el menú del navegador y elige Añadir a pantalla de inicio o Instalar app. En iPhone/iPad hay que usar Safari y el botón de compartir.',
       activeGroup: 'Grupo activo',
       menuGroups: 'Grupos',
       menuStudents: 'Alumnado',
@@ -954,10 +958,13 @@
     const finalCol = meanCol + 1;
 
     for (let r = 2; r <= group.students.length + 1; r++) {
+      const student = group.students[r - 2];
       const meanCell = `${excelCol(meanCol)}${r}`;
       const finalCell = `${excelCol(finalCol)}${r}`;
-      ws[meanCell] = { t: 'n', f: meanFormula(group, r, firstScoreCol, lastScoreCol), z: '0.00' };
-      ws[finalCell] = { t: 's', f: `IF(${meanCell}>=3,"AE",IF(${meanCell}>=2,"AN",IF(${meanCell}>=1.1,"AS","NA")))` };
+      const currentMean = round2(calculateAverage(group, student.id));
+      const currentFinal = literalFromAverage(currentMean);
+      ws[meanCell] = { t: 'n', f: meanFormula(group, r, firstScoreCol, lastScoreCol), v: currentMean, z: '0.00' };
+      ws[finalCell] = { t: 's', f: `IF(${meanCell}>=3,"AE",IF(${meanCell}>=2,"AN",IF(${meanCell}>=1.1,"AS","NA")))`, v: currentFinal };
     }
 
     const range = XLSX.utils.decode_range(ws['!ref']);
@@ -973,7 +980,6 @@
       { wch: 14 }
     ];
 
-    ws['!freeze'] = { xSplit: 1, ySplit: 1 };
     ws['!autofilter'] = { ref: `A1:${excelCol(finalCol)}${Math.max(1, group.students.length + 1)}` };
     ws.__validationSqref = group.activities.length && group.students.length ? `${excelCol(firstScoreCol)}2:${excelCol(lastScoreCol)}${group.students.length + 1}` : '';
     return ws;
@@ -1015,6 +1021,8 @@
       let xml = await file.async('string');
       const validationXml = `<dataValidations count="1"><dataValidation type="list" allowBlank="0" showErrorMessage="1" showInputMessage="1" sqref="${item.sqref}"><formula1>"NA,AS,AN,AE"</formula1></dataValidation></dataValidations>`;
       xml = xml.replace(/<dataValidations[\s\S]*?<\/dataValidations>/g, '');
+      xml = xml.replace(/<sheetViews[\s\S]*?<\/sheetViews>/g, '<sheetViews><sheetView workbookViewId="0" topLeftCell="A1"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>');
+      if (!xml.includes('<sheetViews>')) xml = xml.replace(/<sheetFormatPr/, '<sheetViews><sheetView workbookViewId="0" topLeftCell="A1"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews><sheetFormatPr');
       xml = xml.includes('</sheetData>') ? xml.replace('</sheetData>', `</sheetData>${validationXml}`) : xml.replace('</worksheet>', `${validationXml}</worksheet>`);
       zip.file(path, xml);
     }
@@ -1130,11 +1138,15 @@
     });
 
     els.installBtn.addEventListener('click', async () => {
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-      els.installBtn.classList.add('hidden');
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        return;
+      }
+      alert(`${t('installHelpTitle')}
+
+${t('installHelp')}`);
     });
   }
 

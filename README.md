@@ -1,87 +1,29 @@
 # Quadern LOMLOE PWA
 
-PWA d'avaluació LOMLOE per a professorat, preparada per publicar a GitHub Pages.
-
-## Estructura
-
-```txt
-/
-├── index.html
-├── styles.css
-├── app.js
-├── sw.js
-├── manifest.webmanifest
-├── .nojekyll
-└── README.md
-```
+PWA per a GitHub Pages amb quaderns multi-grup, activitats editables, càlcul LOMLOE i exportació Excel editable.
 
 ## Publicació a GitHub Pages
 
-1. Crea un repositori nou a GitHub.
-2. Puja tots els fitxers d'aquesta carpeta a l'arrel del repositori, no dins d'una subcarpeta.
-3. Ves a **Settings → Pages**.
-4. A **Build and deployment**, selecciona:
-   - **Source:** Deploy from a branch
-   - **Branch:** main
-   - **Folder:** /root
-5. Desa els canvis.
-6. GitHub generarà una URL semblant a:
+1. Puja tots els fitxers a l'arrel del repositori.
+2. Ves a Settings > Pages.
+3. Source: Deploy from a branch.
+4. Branch: main, folder: /root.
+5. Obre la URL HTTPS de GitHub Pages.
 
-```txt
-https://usuari.github.io/nom-del-repositori/
-```
+## Instal·lació
 
-## Important per a PWA
+A Android/Chrome hauria d'aparèixer el botó **Instal·lar**. Si no apareix la finestra automàtica, toca el menú del navegador i tria **Afegeix a pantalla d'inici** o **Instal·la app**.
 
-La PWA necessita servir-se amb HTTP/HTTPS. GitHub Pages és correcte perquè usa HTTPS.
+A iPhone/iPad cal obrir-ho amb Safari i fer **Compartir > Afegir a pantalla d'inici**.
 
-No obris `index.html` amb doble clic si vols provar instal·lació o mode offline, perquè els Service Workers no funcionen bé en mode fitxer local.
+## Excel
 
-## Funcionalitats
+L'exportació genera un `.xlsx` amb:
 
-- Multi-grup / multi-matèria.
-- Importació CSV d'alumnat.
-- Activitats variables: una a una o creació massiva, per exemple 20 de cop.
-- Càlcul per mitjana ponderada amb pesos o mitjana aritmètica simple.
-- Escala LOMLOE: NA = 0,5; AS = 1,5; AN = 2,45; AE = 3,5.
-- Resultats finals: AE >= 3,00; AN >= 2,00; AS >= 1,10; NA < 1,10.
-- Persistència automàtica amb localStorage.
-- Exportació a Excel editable amb desplegables NA/AS/AN/AE i fórmules.
-- PWA instal·lable amb Service Worker.
-
-## Exportació Excel / Google Sheets
-
-L'exportació genera un `.xlsx` amb format de quadern:
-
-- alumnes per files;
-- activitats per columnes;
+- noms visibles des de la cel·la A1;
 - desplegables NA, AS, AN i AE;
-- pesos a la primera fila si el mode és ponderat;
-- fórmules perquè la mitjana i la qualificació final es recalculin en modificar notes.
+- fórmules de mitjana i criteri final;
+- valors calculats ja escrits perquè es vegi millor en visors mòbils;
+- full de llegenda.
 
-A Microsoft Excel és on es conserva millor el format. Google Sheets pot obrir el fitxer, però alguns estils o validacions poden variar segons la importació.
-
-## Prova local opcional
-
-Per provar-la abans de pujar-la a GitHub:
-
-```bash
-python3 -m http.server 8080
-```
-
-Després obre:
-
-```txt
-http://localhost:8080
-```
-
-## Nota sobre llibreries externes
-
-Aquesta versió usa Tailwind, SheetJS i JSZip des de CDN. En GitHub Pages funcionen correctament amb connexió. Després de la primera càrrega, el Service Worker intenta cachejar els recursos per funcionar offline.
-
-Per una versió institucional 100% tancada sense cap CDN, caldria afegir una carpeta `vendor/` amb les llibreries descarregades i canviar les rutes a `index.html` i `sw.js`.
-
-
-## Correcció mòbil
-
-En pantalles petites, la columna de resultat final ja no queda fixada a la dreta perquè amagava les activitats. Ara es veu l’alumne i el primer selector de nota, i es pot desplaçar horitzontalment per veure la resta d’activitats, mitjana i final.
+Alguns visors mòbils d'Excel poden obrir el full en una posició de scroll antiga. Si passa, toca la cel·la A1 o torna a l'inici del full.
