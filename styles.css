@@ -173,16 +173,44 @@ body {
   box-shadow: 8px 0 14px -14px rgba(15,23,42,.36);
 }
 
-thead .sticky-student { z-index: 40; }
+@media (max-width: 640px) {
+  #matrixHead .sticky-student,
+  #matrixBody .sticky-student {
+    min-width: 170px !important;
+    max-width: 170px;
+  }
 
-.sticky-result {
-  position: sticky;
-  right: 0;
-  z-index: 20;
-  box-shadow: -8px 0 14px -14px rgba(15,23,42,.36);
+  #matrixHead th:not(.sticky-student),
+  #matrixBody td:not(.sticky-student) {
+    min-width: 112px;
+  }
+
+  .score-select {
+    width: 5.25rem !important;
+  }
 }
 
-thead .sticky-result { z-index: 40; }
+thead .sticky-student { z-index: 40; }
+
+/* On phones, keeping the final-result column sticky hides the activity selectors.
+   Make results scroll normally on small screens so the first activity is visible
+   next to the student name. Re-enable sticky results only on wider layouts. */
+.sticky-result {
+  position: static;
+  z-index: 10;
+  box-shadow: none;
+}
+
+@media (min-width: 1024px) {
+  .sticky-result {
+    position: sticky;
+    right: 0;
+    z-index: 20;
+    box-shadow: -8px 0 14px -14px rgba(15,23,42,.36);
+  }
+
+  thead .sticky-result { z-index: 40; }
+}
 
 .score-select {
   appearance: none;

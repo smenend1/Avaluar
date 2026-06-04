@@ -80,3 +80,8 @@ http://localhost:8080
 Aquesta versió usa Tailwind, SheetJS i JSZip des de CDN. En GitHub Pages funcionen correctament amb connexió. Després de la primera càrrega, el Service Worker intenta cachejar els recursos per funcionar offline.
 
 Per una versió institucional 100% tancada sense cap CDN, caldria afegir una carpeta `vendor/` amb les llibreries descarregades i canviar les rutes a `index.html` i `sw.js`.
+
+
+## Correcció mòbil
+
+En pantalles petites, la columna de resultat final ja no queda fixada a la dreta perquè amagava les activitats. Ara es veu l’alumne i el primer selector de nota, i es pot desplaçar horitzontalment per veure la resta d’activitats, mitjana i final.
