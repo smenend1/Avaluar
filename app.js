@@ -66,6 +66,7 @@
       activityTipTitle: 'Consell',
       activityTipHelp: 'Amb mitjana aritmètica totes les activitats compten igual. Amb ponderada, els pesos es poden prorratejar si no sumen 100%.',
       activityListTitle: "Llistat d'activitats",
+      editActivityName: "Editar nom de l'activitat",
       calculationTitle: '4. Càlcul',
       calculationHelp: 'Tria com es calcula la nota final del grup actual.',
       weightedTitle: 'Mitjana ponderada amb pesos',
@@ -186,6 +187,7 @@
       activityTipTitle: 'Consejo',
       activityTipHelp: 'Con media aritmética todas las actividades cuentan igual. Con ponderada, los pesos se prorratean si no suman 100%.',
       activityListTitle: 'Listado de actividades',
+      editActivityName: 'Editar nombre de la actividad',
       calculationTitle: '4. Cálculo',
       calculationHelp: 'Elige cómo se calcula la nota final del grupo actual.',
       weightedTitle: 'Media ponderada con pesos',
@@ -594,9 +596,17 @@
 
       return `
         <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="min-w-0">
-            <p class="truncate font-black text-slate-950">${index + 1}. ${escapeHTML(activity.name)}</p>
-            <p class="text-xs text-slate-500">${escapeHTML(activity.id)}</p>
+          <div class="min-w-0 flex-1">
+            <label class="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">${index + 1}</label>
+            <input
+              type="text"
+              value="${escapeHTML(activity.name)}"
+              data-activity-name="${escapeHTML(activity.id)}"
+              class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-950 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+              title="${escapeHTML(t('editActivityName'))}"
+              aria-label="${escapeHTML(t('editActivityName'))}"
+            />
+            <p class="mt-1 text-xs text-slate-500">${escapeHTML(activity.id)}</p>
           </div>
           <div class="flex items-center gap-2">
             ${weightInput}
@@ -1063,6 +1073,17 @@
     });
 
     document.addEventListener('input', e => {
+      const nameInput = e.target.closest('[data-activity-name]');
+      if (nameInput) {
+        const group = activeGroup();
+        const activity = group.activities.find(a => a.id === nameInput.dataset.activityName);
+        if (!activity) return;
+        activity.name = normalizeName(nameInput.value) || nameInput.value;
+        saveState();
+        renderMatrix(group);
+        return;
+      }
+
       const weightInput = e.target.closest('[data-activity-weight]');
       if (!weightInput) return;
       const group = activeGroup();
