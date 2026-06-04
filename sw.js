@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lomloe-pwa-cache-v2';
+const CACHE_NAME = 'lomloe-pwa-cache-v5-mobile-excel';
 const APP_SHELL = [
   './',
   './index.html',

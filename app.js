@@ -78,6 +78,7 @@
       evaluationTitle: '5. Avaluació',
       evaluationHelp: 'Selecciona NA, AS, AN o AE. La mitjana i el resultat final es recalculen al moment.',
       seeResults: 'Veure resultats',
+      editActivitiesFast: 'Editar activitats',
       emptyTitle: 'Encara no hi ha prou dades',
       emptyHelp: 'Crea o importa alumnat i afegeix alguna activitat per començar a avaluar.',
       exportTitle: '6. Exportar',
@@ -199,6 +200,7 @@
       evaluationTitle: '5. Evaluación',
       evaluationHelp: 'Selecciona NA, AS, AN o AE. La media y el resultado final se recalculan al momento.',
       seeResults: 'Ver resultados',
+      editActivitiesFast: 'Editar actividades',
       emptyTitle: 'Todavía no hay suficientes datos',
       emptyHelp: 'Crea o importa alumnado y añade alguna actividad para empezar a evaluar.',
       exportTitle: '6. Exportar',
@@ -299,6 +301,7 @@
     matrixHead: $('#matrixHead'),
     matrixBody: $('#matrixBody'),
     scrollResultsBtn: $('#scrollResultsBtn'),
+    editActivitiesFromEvalBtn: $('#editActivitiesFromEvalBtn'),
     exportCurrentBtn: $('#exportCurrentBtn'),
     exportAllBtn: $('#exportAllBtn'),
     deleteGroupBtn: $('#deleteGroupBtn'),
@@ -632,8 +635,9 @@
       const weightLine = group.mode === 'weighted'
         ? `<div class="mt-1 text-[11px] font-black text-slate-500">${round2(activity.weight)}%</div>`
         : `<div class="mt-1 text-[11px] font-black text-slate-500">1/N</div>`;
-      return `<th class="min-w-[120px] border-b border-r border-slate-200 bg-slate-50 px-3 py-3 text-center align-top">
-        <div class="text-xs font-black uppercase tracking-wide text-slate-700">${index + 1}. ${escapeHTML(activity.name)}</div>
+      return `<th class="min-w-[136px] border-b border-r border-slate-200 bg-slate-50 px-2 py-3 text-center align-top">
+        <label class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">${index + 1}</label>
+        <input type="text" value="${escapeHTML(activity.name)}" data-activity-name-table="${escapeHTML(activity.id)}" class="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-center text-xs font-black text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100" title="${escapeHTML(t('editActivityName'))}" aria-label="${escapeHTML(t('editActivityName'))}" />
         ${weightLine}
       </th>`;
     }).join('');
@@ -906,26 +910,31 @@
       for (let c = firstScoreCol; c <= lastScoreCol; c++) terms.push(literalFormula(`${excelCol(c)}${row}`));
       return `SUM(${terms.join(',')})/${group.activities.length}`;
     }
-    const weightedTerms = [];
-    const weights = [];
-    for (let c = firstScoreCol; c <= lastScoreCol; c++) {
-      const letter = excelCol(c);
-      weightedTerms.push(`(${literalFormula(`${letter}${row}`)}*${letter}$1)`);
-      weights.push(`${letter}$1`);
+
+    const totalWeight = group.activities.reduce((sum, activity) => sum + Math.max(0, cleanNumber(activity.weight, 0)), 0);
+    if (totalWeight <= 0) {
+      const terms = [];
+      for (let c = firstScoreCol; c <= lastScoreCol; c++) terms.push(literalFormula(`${excelCol(c)}${row}`));
+      return `SUM(${terms.join(',')})/${group.activities.length}`;
     }
-    return `SUM(${weightedTerms.join(',')})/SUM(${weights.join(',')})`;
+
+    const weightedTerms = [];
+    for (let i = 0; i < group.activities.length; i++) {
+      const c = firstScoreCol + i;
+      const weight = Math.max(0, cleanNumber(group.activities[i].weight, 0));
+      weightedTerms.push(`(${literalFormula(`${excelCol(c)}${row}`)}*${weight})`);
+    }
+    return `SUM(${weightedTerms.join(',')})/${totalWeight}`;
   }
 
   function createWorksheetForGroup(group) {
     reconcileGroup(group);
-    const row1 = ['', t('weightsRow'), ...group.activities.map(a => group.mode === 'weighted' ? Math.max(0, cleanNumber(a.weight, 0)) : 1), '', ''];
-    const row2 = ['', t('modeRow'), ...group.activities.map(() => group.mode === 'weighted' ? t('weightedMode') : t('arithmeticMode')), '', ''];
-    const headers = [t('idHeader'), t('nameHeader'), ...group.activities.map(a => a.name), t('numericalMeanHeader'), t('finalCriteriaHeader')];
-    const aoa = [row1, row2, headers];
+
+    const headers = [t('nameHeader'), ...group.activities.map(a => a.name), t('numericalMeanHeader'), t('finalCriteriaHeader')];
+    const aoa = [headers];
 
     group.students.forEach(student => {
       aoa.push([
-        student.id,
         student.name,
         ...group.activities.map(activity => group.scores[student.id]?.[activity.id] || DEFAULT_SCORE),
         null,
@@ -933,13 +942,18 @@
       ]);
     });
 
+    aoa.push([]);
+    aoa.push([t('modeRow'), group.mode === 'weighted' ? t('weightedMode') : t('arithmeticMode')]);
+    aoa.push([t('weightsRow'), ...group.activities.map(a => group.mode === 'weighted' ? Math.max(0, cleanNumber(a.weight, 0)) : 1)]);
+    aoa.push([t('idHeader'), ...group.students.map(s => s.id)]);
+
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const firstScoreCol = 3;
+    const firstScoreCol = 2;
     const lastScoreCol = firstScoreCol + group.activities.length - 1;
     const meanCol = firstScoreCol + group.activities.length;
     const finalCol = meanCol + 1;
 
-    for (let r = 4; r <= group.students.length + 3; r++) {
+    for (let r = 2; r <= group.students.length + 1; r++) {
       const meanCell = `${excelCol(meanCol)}${r}`;
       const finalCell = `${excelCol(finalCol)}${r}`;
       ws[meanCell] = { t: 'n', f: meanFormula(group, r, firstScoreCol, lastScoreCol), z: '0.00' };
@@ -947,22 +961,21 @@
     }
 
     const range = XLSX.utils.decode_range(ws['!ref']);
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const addr = XLSX.utils.encode_cell({ r: 2, c: C });
+    for (let C = range.s.c; C <= Math.min(range.e.c, finalCol - 1); C++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c: C });
       if (ws[addr]) ws[addr].s = headerStyle();
     }
 
     ws['!cols'] = [
-      { wch: 18 },
-      { wch: 32 },
-      ...group.activities.map(a => ({ wch: Math.max(13, Math.min(26, a.name.length + 4)) })),
-      { wch: 18 },
-      { wch: 16 }
+      { wch: 30 },
+      ...group.activities.map(a => ({ wch: Math.max(12, Math.min(24, a.name.length + 3)) })),
+      { wch: 16 },
+      { wch: 14 }
     ];
 
-    ws['!freeze'] = { xSplit: 2, ySplit: 3 };
-    ws['!autofilter'] = { ref: `A3:${excelCol(finalCol)}${Math.max(3, group.students.length + 3)}` };
-    ws.__validationSqref = group.activities.length && group.students.length ? `${excelCol(firstScoreCol)}4:${excelCol(lastScoreCol)}${group.students.length + 3}` : '';
+    ws['!freeze'] = { xSplit: 1, ySplit: 1 };
+    ws['!autofilter'] = { ref: `A1:${excelCol(finalCol)}${Math.max(1, group.students.length + 1)}` };
+    ws.__validationSqref = group.activities.length && group.students.length ? `${excelCol(firstScoreCol)}2:${excelCol(lastScoreCol)}${group.students.length + 1}` : '';
     return ws;
   }
 
@@ -1059,6 +1072,8 @@
     els.addActivityBtn.addEventListener('click', () => addActivity(els.activityNameInput.value, els.activityWeightInput.value));
     els.bulkActivityBtn.addEventListener('click', bulkCreateActivities);
     $$('input[name="calcMode"]').forEach(input => input.addEventListener('change', () => setMode(input.value)));
+    if (els.editActivitiesFromEvalBtn) els.editActivitiesFromEvalBtn.addEventListener('click', () => showPanel('activitiesPanel'));
+
     els.scrollResultsBtn.addEventListener('click', () => { els.tableWrap.scrollLeft = els.tableWrap.scrollWidth; });
     els.exportCurrentBtn.addEventListener('click', () => exportWorkbook([activeGroup()], 'quadern_lomloe_grup'));
     els.exportAllBtn.addEventListener('click', () => exportWorkbook(state.groups, 'quaderns_lomloe_tots_grups'));
@@ -1073,10 +1088,11 @@
     });
 
     document.addEventListener('input', e => {
-      const nameInput = e.target.closest('[data-activity-name]');
+      const nameInput = e.target.closest('[data-activity-name], [data-activity-name-table]');
       if (nameInput) {
         const group = activeGroup();
-        const activity = group.activities.find(a => a.id === nameInput.dataset.activityName);
+        const activityId = nameInput.dataset.activityName || nameInput.dataset.activityNameTable;
+        const activity = group.activities.find(a => a.id === activityId);
         if (!activity) return;
         activity.name = normalizeName(nameInput.value) || nameInput.value;
         saveState();
