@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lomloe-pwa-cache-v6-install-excel';
+const CACHE_NAME = 'lomloe-pwa-cache-v7-offline-export';
 const APP_SHELL = [
   './',
   './index.html',
@@ -7,9 +7,7 @@ const APP_SHELL = [
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+  'https://cdn.tailwindcss.com'
 ];
 
 self.addEventListener('install', event => {
