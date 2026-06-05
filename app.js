@@ -1091,7 +1091,7 @@
     group.students.forEach((student, idx) => {
       const r = idx + 2;
       const avg = round2(calculateAverage(group, student.id));
-      const finalLiteral = literalFromAverage(avg);
+      const finalLiteral = valueToLiteral(avg);
       const cells = [cellXml(`A${r}`, student.name)];
       group.activities.forEach((activity, index) => {
         cells.push(cellXml(`${excelCol(firstScoreCol + index)}${r}`, group.scores[student.id]?.[activity.id] || DEFAULT_SCORE));

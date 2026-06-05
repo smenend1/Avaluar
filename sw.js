@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lomloe-pwa-cache-v9-blankfix';
+const CACHE_NAME = 'quadern-lomloe-v17-export-name-fix';
 const APP_SHELL = [
   './',
   './index.html',
