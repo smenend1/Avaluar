@@ -1033,6 +1033,28 @@
     return concatUint8([localData, centralDir, eocd]).buffer;
   }
 
+  let sharedStringMap = new Map();
+  let sharedStringList = [];
+
+  function resetSharedStrings() {
+    sharedStringMap = new Map();
+    sharedStringList = [];
+  }
+
+  function sharedStringIndex(value) {
+    const text = String(value ?? '');
+    if (sharedStringMap.has(text)) return sharedStringMap.get(text);
+    const index = sharedStringList.length;
+    sharedStringMap.set(text, index);
+    sharedStringList.push(text);
+    return index;
+  }
+
+  function buildSharedStringsXml() {
+    const items = sharedStringList.map(text => `<si><t>${escapeXml(text)}</t></si>`).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sharedStringList.length}" uniqueCount="${sharedStringList.length}">${items}</sst>`;
+  }
+
   function cellXml(ref, value, options = {}) {
     const attrs = [`r="${ref}"`];
     if (options.style) attrs.push(`s="${options.style}"`);
@@ -1045,7 +1067,7 @@
       return `<c ${attrs.join(' ')}><f>${formula}</f><v>${Number.isFinite(n) ? n : 0}</v></c>`;
     }
     if (typeof value === 'number') return `<c ${attrs.join(' ')}><v>${value}</v></c>`;
-    return `<c ${attrs.join(' ')} t="inlineStr"><is><t>${escapeXml(value ?? '')}</t></is></c>`;
+    return `<c ${attrs.join(' ')} t="s"><v>${sharedStringIndex(value)}</v></c>`;
   }
 
   function rowXml(rowIndex, cells) {
@@ -1128,6 +1150,7 @@
   }
 
   function buildWorkbookFiles(groupsToExport) {
+    resetSharedStrings();
     const usedNames = new Set();
     const sheets = groupsToExport.map((group, index) => ({
       name: sheetSafeName(group.name, usedNames),
@@ -1138,13 +1161,14 @@
 
     const contentOverrides = sheets.map(sheet => `<Override PartName="/xl/worksheets/sheet${sheet.id}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('');
     const workbookSheets = sheets.map(sheet => `<sheet name="${escapeXml(sheet.name)}" sheetId="${sheet.id}" r:id="rId${sheet.id}"/>`).join('');
-    const workbookRels = sheets.map(sheet => `<Relationship Id="rId${sheet.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${sheet.id}.xml"/>`).join('') + `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+    const workbookRels = sheets.map(sheet => `<Relationship Id="rId${sheet.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${sheet.id}.xml"/>`).join('') + `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId${sheets.length + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>`;
 
     const entries = [
-      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${contentOverrides}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },
+      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${contentOverrides}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>` },
       { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
       { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${workbookSheets}</sheets></workbook>` },
       { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${workbookRels}</Relationships>` },
+      { name: 'xl/sharedStrings.xml', data: buildSharedStringsXml() },
       { name: 'xl/styles.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F766E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEFF6FF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF0FDF4"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="2" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` }
     ];
     sheets.forEach(sheet => entries.push({ name: `xl/worksheets/sheet${sheet.id}.xml`, data: sheet.xml }));
@@ -1288,11 +1312,21 @@ ${t('installHelp')}`);
   }
 
   function init() {
-    loadState();
-    attachEvents();
-    applyI18n();
-    registerServiceWorker();
-    window.LOMLOE = { getState: () => JSON.parse(JSON.stringify(state)), escapeStr, safeBase64, exportWorkbook };
+    try {
+      loadState();
+      attachEvents();
+      applyI18n();
+      registerServiceWorker();
+      window.LOMLOE = { getState: () => JSON.parse(JSON.stringify(state)), escapeStr, safeBase64, exportWorkbook };
+      window.__LOMLOE_BOOT_OK = true;
+    } catch (error) {
+      console.error('LOMLOE boot error:', error);
+      const box = document.getElementById('bootErrorBox');
+      if (box) {
+        box.classList.remove('hidden');
+        box.textContent = 'Error carregant la PWA: ' + (error && error.message ? error.message : error);
+      }
+    }
   }
 
   init();

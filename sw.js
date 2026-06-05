@@ -1,9 +1,9 @@
-const CACHE_NAME = 'lomloe-pwa-cache-v7-offline-export';
+const CACHE_NAME = 'lomloe-pwa-cache-v9-blankfix';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
+  './styles.css?v=20260604-blankfix',
+  './app.js?v=20260604-blankfix',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -26,24 +26,35 @@ self.addEventListener('activate', event => {
   );
 });
 
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request, { cache: 'no-store' });
+    if (response && response.ok) cache.put(request, response.clone()).catch(() => {});
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    if (request.mode === 'navigate') {
+      const shell = await caches.match('./index.html');
+      if (shell) return shell;
+    }
+    throw error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  const cache = await caches.open(CACHE_NAME);
+  cache.put(request, response.clone()).catch(() => {});
+  return response;
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-
-  event.respondWith((async () => {
-    const cached = await caches.match(event.request);
-    if (cached) return cached;
-
-    try {
-      const response = await fetch(event.request);
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(event.request, response.clone()).catch(() => {});
-      return response;
-    } catch (error) {
-      if (event.request.mode === 'navigate') {
-        const shell = await caches.match('./index.html');
-        if (shell) return shell;
-      }
-      throw error;
-    }
-  })());
+  const url = new URL(event.request.url);
+  const isCore = event.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/app.js') || url.pathname.endsWith('/styles.css');
+  event.respondWith(isCore ? networkFirst(event.request) : cacheFirst(event.request));
 });
